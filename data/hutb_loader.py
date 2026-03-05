@@ -5,28 +5,32 @@ TREEBANK_PATH = "data/raw/UD_Hindi-HDTB/hi_hdtb-ud-train.conllu"
 
 
 def load_conllu(filepath):
+
     sentences = []
     current_sentence = []
 
     with open(filepath, "r", encoding="utf-8") as f:
         for line in f:
+
             line = line.strip()
 
-            # sentence boundary
             if line == "":
                 if current_sentence:
                     sentences.append(current_sentence)
                     current_sentence = []
                 continue
 
-            # skip comments
             if line.startswith("#"):
                 continue
 
             parts = line.split("\t")
 
-            # ignore multiword tokens like 3-4
-            if "-" in parts[0] or "." in parts[0]:
+            # skip multiword tokens (3-4)
+            if "-" in parts[0]:
+                continue
+
+            # skip empty nodes (3.1)
+            if "." in parts[0]:
                 continue
 
             token = {
@@ -41,6 +45,7 @@ def load_conllu(filepath):
             current_sentence.append(token)
 
     return sentences
+
 
 def is_valid_sov_sentence(sentence):
 
@@ -62,156 +67,136 @@ def is_valid_sov_sentence(sentence):
     if root is None:
         return False
 
-    # root must be a verb
     if root["upos"] != "VERB":
         return False
 
     return has_subject and has_object
 
-def extract_preverbal_tokens(sentence):
-
-    root_id = None
-
-    for token in sentence:
-        if token["head"] == 0:
-            root_id = token["id"]
-            break
-
-    if root_id is None:
-        return []
-
-    preverbal_tokens = []
-
-    for token in sentence:
-        if token["id"] < root_id and token["upos"] != "PUNCT":
-            preverbal_tokens.append(token["word"])
-
-    return preverbal_tokens
-
-def generate_variants(sentence, max_variants=99):
-
-    # find root verb
-    root_id = None
-    root_word = None
-
-    for token in sentence:
-        if token["head"] == 0:
-            root_id = token["id"]
-            root_word = token["word"]
-            break
-
-    if root_id is None:
-        return []
-
-    # split sentence
-    preverbal = []
-    postverbal = []
-
-    for token in sentence:
-
-        if token["id"] < root_id and token["upos"] != "PUNCT":
-            preverbal.append(token["word"])
-
-        if token["id"] > root_id and token["upos"] != "PUNCT":
-            postverbal.append(token["word"])
-
-    # generate permutations
-    permutations = list(itertools.permutations(preverbal))
-
-    variants = []
-
-    for perm in permutations:
-
-        variant = list(perm) + [root_word] + postverbal
-
-        variants.append(" ".join(variant))
-
-        if len(variants) >= max_variants:
-            break
-
-    return variants
 
 def get_subtree(sentence, token_id):
 
-    subtree = []
+    subtree_ids = set()
     stack = [token_id]
 
     while stack:
+
         current = stack.pop()
 
-        for token in sentence:
-            if token["id"] == current:
-                subtree.append(token)
+        if current in subtree_ids:
+            continue
 
+        subtree_ids.add(current)
+
+        for token in sentence:
             if token["head"] == current:
                 stack.append(token["id"])
 
+    subtree = []
+
+    for token in sentence:
+        if token["id"] in subtree_ids:
+            subtree.append(token)
+
     return subtree
 
-def subtree_words(sentence, token_id):
+
+def subtree_tokens(sentence, token_id):
 
     subtree = get_subtree(sentence, token_id)
 
     subtree = sorted(subtree, key=lambda x: x["id"])
 
-    return [t["word"] for t in subtree]
+    return subtree
+
 
 def generate_variants_subtrees(sentence, max_variants=99):
 
-    root_id = None
-    root_word = None
+    root = None
 
     for token in sentence:
         if token["head"] == 0:
-            root_id = token["id"]
-            root_word = token["word"]
+            root = token
             break
 
-    if root_id is None:
+    if root is None:
         return []
 
-    phrases = []
-    postverbal = []
+    root_id = root["id"]
+
+    preverbal_phrases = []
+    postverbal_phrases = []
 
     for token in sentence:
 
         if token["head"] == root_id:
 
-            if token["deprel"] in ["punct"]:
+            if token["deprel"] == "punct":
                 continue
 
-            subtree = subtree_words(sentence, token["id"])
+            phrase_tokens = subtree_tokens(sentence, token["id"])
 
-            # check if phrase is before verb
             if token["id"] < root_id:
-                phrases.append(subtree)
+                preverbal_phrases.append(phrase_tokens)
             else:
-                postverbal.append(subtree)
+                postverbal_phrases.append((token["id"], phrase_tokens))
 
-    # flatten postverbal phrases
-    postverbal = [w for phrase in postverbal for w in phrase]
+    # keep postverbal phrases in original order
+    postverbal_phrases = sorted(postverbal_phrases, key=lambda x: x[0])
+
+    postverbal_tokens = []
+    for _, phrase in postverbal_phrases:
+        postverbal_tokens.extend(phrase)
 
     variants = []
 
-    perms = itertools.permutations(phrases)
+    perms = itertools.permutations(preverbal_phrases)
 
     for perm in perms:
 
-        new_sentence = []
+        new_tokens = []
 
         for phrase in perm:
-            new_sentence.extend(phrase)
+            new_tokens.extend(phrase)
 
-        new_sentence.append(root_word)
+        new_tokens.append(root)
 
-        new_sentence.extend(postverbal)
+        new_tokens.extend(postverbal_tokens)
 
-        variants.append(" ".join(new_sentence))
+        words = [t["word"] for t in new_tokens]
+
+        variant = " ".join(words)
+
+        variants.append(variant)
 
         if len(variants) >= max_variants:
             break
 
     return variants
+
+
+def build_variant_dataset(sentences):
+
+    dataset = []
+
+    for i, sentence in enumerate(sentences):
+
+        variants = generate_variants_subtrees(sentence)
+
+        if len(variants) <= 1:
+            continue
+
+        reference = variants[0]
+
+        for v in variants[1:]:
+
+            dataset.append({
+                "sentence_id": i,
+                "reference": reference,
+                "variant": v
+            })
+
+    return dataset
+
 
 if __name__ == "__main__":
 
@@ -220,12 +205,11 @@ if __name__ == "__main__":
     valid_sentences = [s for s in sentences if is_valid_sov_sentence(s)]
 
     print("Total sentences:", len(sentences))
-
     print("Valid SOV sentences:", len(valid_sentences))
 
-    print("\nExample sentence:\n")
-
     example = valid_sentences[0]
+
+    print("\nExample sentence:\n")
 
     for token in example:
         print(
@@ -235,19 +219,7 @@ if __name__ == "__main__":
             "HEAD:", token["head"],
             "REL:", token["deprel"]
         )
-    preverbal = extract_preverbal_tokens(example)
 
-    print("\nPreverbal tokens:")
-    print(preverbal)
-
-    variants = generate_variants(example)
-
-    print("\nGenerated variants:")
-    print("-------------------")
-
-    for v in variants[:10]:
-        print(v)
-    
     root_id = None
 
     for token in example:
@@ -263,13 +235,32 @@ if __name__ == "__main__":
 
         if token["head"] == root_id:
 
-            phrase = subtree_words(example, token["id"])
+            phrase = subtree_tokens(example, token["id"])
 
-            print(token["deprel"], "->", " ".join(phrase))
-    
+            words = [t["word"] for t in phrase]
+
+            print(token["deprel"], "->", " ".join(words))
+
     variants = generate_variants_subtrees(example)
 
     print("\nGenerated variants:")
 
     for v in variants:
         print(v)
+
+    dataset = build_variant_dataset(valid_sentences)
+
+    print("\nTotal variant pairs:", len(dataset))
+
+    print("\nRaw variant repr:")
+    print(repr(dataset[0]["variant"]))
+    print("\nExample pair:")
+    pair = dataset[0]
+
+    print("\nSentence ID:", pair["sentence_id"])
+
+    print("\nReference:")
+    print(pair["reference"])
+
+    print("\nVariant:")
+    print(pair["variant"])

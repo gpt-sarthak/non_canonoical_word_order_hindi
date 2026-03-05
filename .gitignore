@@ -9,3 +9,13 @@ checkpoints/
 *.ipynb_checkpoints
 models/trigram/
 models/lstm/
+data/raw/*
+!data/raw/UD_Hindi-HDTB/
+models/
+
+# python
+__pycache__/
+*.pyc
+
+# environment
+venv/
