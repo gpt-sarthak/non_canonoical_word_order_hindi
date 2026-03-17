@@ -52,13 +52,14 @@ def load_lstm_model(model_path, vocab_size, device=None):
 # ------------------------------------------------------------
 # Compute LSTM surprisal for a sentence
 # ------------------------------------------------------------
-def sentence_lstm_surprisal(sentence, model, vocab, device):
+def sentence_lstm_surprisal(sentence, model, vocab, device="cpu"):
 
     words = sentence.split()
 
-    word2idx = vocab["word2idx"]
+    # vocab is already word2idx
+    word2idx = vocab
 
-    indices = [word2idx.get(w, word2idx["<UNK>"]) for w in words]
+    indices = [word2idx.get(w, word2idx.get("<UNK>", 0)) for w in words]
 
     input_tensor = torch.tensor(indices[:-1]).unsqueeze(0).to(device)
     target_tensor = torch.tensor(indices[1:]).to(device)
@@ -73,11 +74,12 @@ def sentence_lstm_surprisal(sentence, model, vocab, device):
 
         for i, target in enumerate(target_tensor):
 
-            log_prob = log_probs[0, i, target].item()
+            prob = log_probs[0, i, target].item()
 
-            total_surprisal += -log_prob
+            total_surprisal += -prob
 
     return total_surprisal
+
 
 
 # ------------------------------------------------------------
