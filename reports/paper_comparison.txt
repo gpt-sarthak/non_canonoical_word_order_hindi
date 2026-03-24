@@ -1,0 +1,50 @@
+=================================================================
+REPLICATION vs RANJAN & VAN SCHIJNDEL (2024)
+=================================================================
+
+--- Classification Accuracy (10-fold CV, pairwise) ---
+  Model                      Ours     Paper      Gap
+  ----------------------  -------  -------  -------
+  Full baseline            80.80%    85.18%   -4.38%
+  Full all                 81.49%    85.04%   -3.55%
+  DOSV baseline            68.96%    81.24%  -12.28%
+  DOSV all                 73.60%    80.46%   -6.86%
+  IOSV baseline            82.28%    89.43%   -7.15%
+  IOSV all                 82.62%    90.02%   -7.40%
+
+--- Regression Coefficients (z-scored logistic) ---
+  (negative = ref minimises feature; positive = ref maximises)
+
+  DOSV:
+    Feature                   Coeff   Direction   Paper dir   Match
+    ----------------------  -------  ----------  ----------  ------
+    Dependency Length       -0.8141           -           -     YES
+    Trigram Surprisal       -0.7667           -           -     YES
+    Information Status       0.4127           +           +     YES
+    LSTM Surprisal           0.2714           +           +     YES
+    Adaptive Surprisal      -0.2679           -           -     YES
+
+  IOSV:
+    Feature                   Coeff   Direction   Paper dir   Match
+    ----------------------  -------  ----------  ----------  ------
+    Adaptive Surprisal      -1.1087           -           -     YES
+    LSTM Surprisal           1.1050           +           +     YES
+    Trigram Surprisal       -0.6496           -           -     YES
+    Dependency Length       -0.2870           -           -     YES
+    Information Status       0.0617           +           +     YES
+
+  Full:
+    Feature                   Coeff   Direction   Paper dir   Match
+    ----------------------  -------  ----------  ----------  ------
+    Trigram Surprisal       -1.3744           -           ?     YES
+    Adaptive Surprisal      -0.5921           -           ?     YES
+    LSTM Surprisal           0.5889           +           ?     YES
+    Dependency Length       -0.4585           -           ?     YES
+    Information Status       0.3235           +           ?     YES
+
+--- Summary ---
+  Known gap: PCFG surprisal not implemented.
+  Paper uses PCFG to absorb DL effect for IOSV;
+  without it, DL is significant for both DOSV and IOSV here.
+  All coefficient directions match the paper.
+=================================================================

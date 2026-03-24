@@ -1,0 +1,35 @@
+Loading treebank...
+  Total sentences: 13306
+Filtering sentences...
+  Valid sentences: 2828
+Generating variants...
+  Total pairs: 92299
+
+Computing dependency length features...
+
+Loading trigram model...
+  Model type: MLE
+Computing trigram surprisal features...
+  Done — 92299 pairs
+
+Example result:
+  sentence_id      : 0
+  reference        : इसे नवाब शाहजेहन ने बनवाया था ।
+  variant          : नवाब शाहजेहन ने इसे बनवाया था ।
+  trigram_reference: 15.2341
+  trigram_variant  : 16.8099
+  delta_trigram    : -1.5758
+
+Delta distribution (delta = ref - var):
+  Mean delta_trigram: -5.3057
+  Negative (ref more predictable):  71305  (77.3%)
+  Zero                           :     28  (0.0%)
+  Positive (var more predictable):  20966  (22.7%)
+
+Per-word backoff distribution (first 200 reference sentences):
+  trigram             :   1861  (53.3%)
+  bigram              :   1284  (36.8%)
+  unigram             :    344  (9.9%)
+  epsilon (OOV)       :      0  (0.0%)
+
+  Total words analysed: 3489

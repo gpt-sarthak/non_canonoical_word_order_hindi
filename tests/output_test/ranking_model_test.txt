@@ -1,0 +1,73 @@
+Loading: data/features/features.csv
+Shape  : (92299, 19)
+Features (5): ['delta_dl', 'delta_trigram', 'delta_lstm', 'delta_adaptive', 'delta_is']
+===================== Train / Test Split =====================
+  Sentences — train: 2262, test: 566
+  Pairs     — train: 73837,  test: 18462
+================ Full dataset — all features =================
+
+  Regression coefficients (z-scored):
+  (negative = reference preferred, matches paper Tables 2 & 3)
+    Trigram Surprisal       : -1.3809  (↓ ref minimises)
+    Adaptive Surprisal      : -0.5925  (↓ ref minimises)
+    LSTM Surprisal          : +0.5848  (↑ ref maximises)
+    Dependency Length       : -0.4811  (↓ ref minimises)
+    Information Status      : +0.3183  (↑ ref maximises)
+================ Per-construction evaluation =================
+
+  DOSV — train: 2888 pairs, test: 572 pairs
+
+  Classification report:
+                 precision    recall  f1-score   support
+  
+  VAR preferred     0.6538    0.6538    0.6538       572
+  REF preferred     0.6538    0.6538    0.6538       572
+  
+       accuracy                         0.6538      1144
+      macro avg     0.6538    0.6538    0.6538      1144
+   weighted avg     0.6538    0.6538    0.6538      1144
+  
+
+  IOSV — train: 2092 pairs, test: 721 pairs
+
+  Classification report:
+                 precision    recall  f1-score   support
+  
+  VAR preferred     0.8890    0.8890    0.8890       721
+  REF preferred     0.8890    0.8890    0.8890       721
+  
+       accuracy                         0.8890      1442
+      macro avg     0.8890    0.8890    0.8890      1442
+   weighted avg     0.8890    0.8890    0.8890      1442
+  
+
+  SOV — train: 68857 pairs, test: 17169 pairs
+
+  Classification report:
+                 precision    recall  f1-score   support
+  
+  VAR preferred     0.8162    0.8162    0.8162     17169
+  REF preferred     0.8162    0.8162    0.8162     17169
+  
+       accuracy                         0.8162     34338
+      macro avg     0.8162    0.8162    0.8162     34338
+   weighted avg     0.8162    0.8162    0.8162     34338
+  
+========== Individual predictor accuracy (test set) ==========
+
+  Predictor                    Accuracy         F1
+  -------------------------- ---------- ----------
+  Dependency Length              58.53%     0.5741
+  Trigram Surprisal              77.52%     0.7753
+  LSTM Surprisal                 77.85%     0.7785
+  Adaptive Surprisal             77.85%     0.7785
+  Information Status             53.93%     0.6712
+  Baseline (adap+tri)            80.59%     0.8059
+  All predictors                 81.20%     0.8120
+========================== Summary ===========================
+Construction  Test pairs Accuracy Precision Recall     F1
+        DOSV        1144   65.38%    0.6538 0.6538 0.6538
+        IOSV        1442   88.90%    0.8890 0.8890 0.8890
+         SOV       34338   81.62%    0.8162 0.8162 0.8162
+======================== Saving model ========================
+  Saved to: tests/output_test/ranking_model.pkl

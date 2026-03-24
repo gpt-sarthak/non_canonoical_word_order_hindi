@@ -7,11 +7,15 @@ data/raw/
 data/processed/
 checkpoints/
 *.ipynb_checkpoints
-models/trigram/
-models/lstm/
 data/raw/*
 !data/raw/UD_Hindi-HDTB/
-models/
+models/**/*.pt
+models/**/*.pkl
+models/**/*.bin
+
+# personal / generated
+.claude/
+output/
 
 # python
 __pycache__/

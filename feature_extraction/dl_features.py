@@ -78,16 +78,19 @@ def compute_dl_features(dataset):
             dependencies
         )
 
-        # Feature used in ranking model
-        delta_dl = dl_var - dl_ref
+        # Paper: delta = feature(reference) − feature(variant)
+        # Positive delta means reference has HIGHER DL than variant.
+        # Negative delta means reference MINIMISES dependency length.
+        delta_dl = dl_ref - dl_var
 
+        # Use **item to carry ALL fields forward (sentence_id,
+        # construction_type, context, tokens, etc.) so downstream
+        # steps don't lose metadata.
         results.append({
-            "sentence_id": item["sentence_id"],
-            "reference": item["reference"],
-            "variant": item["variant"],
+            **item,
             "dl_reference": dl_ref,
-            "dl_variant": dl_var,
-            "delta_dl": delta_dl
+            "dl_variant":   dl_var,
+            "delta_dl":     delta_dl,
         })
 
     return results

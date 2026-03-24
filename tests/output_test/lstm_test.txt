@@ -1,0 +1,31 @@
+Loading treebank...
+  Total sentences: 13306
+Filtering sentences...
+  Valid sentences: 2828
+Generating variants...
+  Total pairs: 92299
+
+Computing dependency length features...
+
+Loading trigram model...
+Computing trigram features...
+
+Loading vocabulary...
+  Vocab size: 30000
+
+Loading LSTM model...
+  Device: cuda
+Computing LSTM features...
+  Done — 92299 pairs
+
+Example result:
+  reference    : इसे नवाब शाहजेहन ने बनवाया था ।
+  variant      : नवाब शाहजेहन ने इसे बनवाया था ।
+  delta_dl     : 2.0000
+  delta_trigram: -1.5758
+  delta_lstm   : -3.6033
+
+Delta summary (delta = ref - var):
+  Mean delta_lstm: 9.6467
+  Negative (ref more predictable):  20838  (22.6%)
+  Positive (var more predictable):  71461  (77.4%)
