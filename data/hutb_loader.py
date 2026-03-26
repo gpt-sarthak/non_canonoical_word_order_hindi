@@ -478,6 +478,7 @@ def generate_variants_subtrees(sentence, valid_transitions=None, max_variants=MA
 
     # ── Generate all permutations ───────────────────────────────
     all_variants = []
+    seen_strings = {reference_str}   # deduplicate: skip reference and any repeated surface form
 
     for perm in itertools.permutations(preverbal_phrases):
 
@@ -493,9 +494,10 @@ def generate_variants_subtrees(sentence, valid_transitions=None, max_variants=MA
 
         variant_str = " ".join(t["word"] for t in new_tokens)
 
-        # Skip permutations that reproduce the reference surface form
-        if variant_str == reference_str:
+        # Skip if already seen (catches reference duplicate and inter-variant duplicates)
+        if variant_str in seen_strings:
             continue
+        seen_strings.add(variant_str)
 
         all_variants.append({
             "sentence": variant_str,
