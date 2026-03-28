@@ -45,9 +45,9 @@ from statsmodels.stats.contingency_tables import mcnemar
 
 FEATURE_FILE = "data/features/features.csv"
 
-# Features available in the current implementation
-# (delta_pcfg excluded — not implemented, see module docstring)
-ALL_FEATURES = ["delta_dl", "delta_trigram", "delta_lstm", "delta_adaptive", "delta_is"]
+# Features matching the paper (Table 4 column order)
+# delta_pcfg now included — computed via 5-fold CV on HUTB chunk-based PCFG
+ALL_FEATURES = ["delta_dl", "delta_trigram", "delta_pcfg", "delta_lstm", "delta_adaptive", "delta_is"]
 
 # Baseline: the two strongest individual predictors (paper Table 4)
 BASELINE_FEATURES = ["delta_adaptive", "delta_trigram"]

@@ -14,11 +14,12 @@ Steps:
     6.  LSTM surprisal
     7.  Adaptive LSTM surprisal  (adapt on context, reset per sentence)
     8.  Information Status / givenness score
-    9.  Save features.csv
+    9.  PCFG surprisal  (5-fold CV on all HUTB trees, fast direct chunk scoring)
+    10. Save features.csv
 
-IS features (Step 8) require token-level parse data (tokens, order,
+IS and PCFG features require token-level parse data (tokens, order,
 context) which exist in memory during the pipeline but are not saved
-to CSV. They MUST be computed before Step 9.
+to CSV. They MUST be computed before Step 10.
 """
 
 import os
@@ -40,6 +41,10 @@ from feature_extraction.lstm_features     import (
 )
 from feature_extraction.adaptive_features import compute_adaptive_features
 from feature_extraction.is_features       import compute_is_features
+from feature_extraction.pcfg_features    import (
+    extract_trees_from_conllu,
+    compute_pcfg_features,
+)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -132,8 +137,18 @@ def main():
     print(f"  IS reference distribution: {dict(sorted(is_dist.items()))}")
     print(f"  Done — sample delta_is : {results[0]['delta_is']}")
 
-    # ── Step 9: Save ───────────────────────────────────────────
-    print("\nStep 9: Saving feature dataset...")
+    # ── Step 9: PCFG surprisal ─────────────────────────────────
+    # Requires 'tokens' (with chunk_id) and 'order' from each item.
+    # Uses 5-fold CV on all HUTB trees (paper §PCFG surprisal).
+    print("\nStep 9: Computing PCFG surprisal (5-fold CV)...")
+    print("  Extracting constituency trees from HUTB train file...")
+    all_hutb_trees = extract_trees_from_conllu(TREEBANK_PATH)
+    print(f"  {len(all_hutb_trees)} trees extracted")
+    results = compute_pcfg_features(results, all_hutb_trees, n_folds=5)
+    print(f"  Done — sample delta_pcfg : {results[0]['delta_pcfg']:.4f}")
+
+    # ── Step 10: Save ──────────────────────────────────────────
+    print("\nStep 10: Saving feature dataset...")
     df = pd.DataFrame(results).drop(columns=DROP_COLS, errors="ignore")
 
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
@@ -154,7 +169,8 @@ def main():
 
     print(f"\nSample deltas (first 5 rows):")
     print(df[["construction_type", "delta_dl", "delta_trigram",
-              "delta_lstm", "delta_adaptive", "delta_is"]].head(5).to_string())
+              "delta_lstm", "delta_adaptive", "delta_is",
+              "delta_pcfg"]].head(5).to_string())
 
     print("\nDone.")
 

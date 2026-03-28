@@ -124,14 +124,24 @@ def load_conllu(filepath):
             if "." in parts[0]:
                 continue
 
+            # Parse chunk_id from MISC field (parts[9]) for PCFG scoring.
+            # ChunkId=NP2 → stored as "NP2"; stripped of digits later when needed.
+            misc_str = parts[9] if len(parts) > 9 else "_"
+            chunk_id = None
+            for kv in misc_str.split("|"):
+                if kv.startswith("ChunkId="):
+                    chunk_id = kv.split("=", 1)[1]
+                    break
+
             token = {
-                "id":     int(parts[0]),   # 1-based position in sentence
-                "word":   parts[1],        # surface form
-                "lemma":  parts[2],        # lemma
-                "upos":   parts[3],        # universal POS tag
-                "feats":  parts[5],        # morphological features
-                "head":   int(parts[6]),   # index of syntactic head (0 = root)
-                "deprel": parts[7],        # dependency relation label
+                "id":       int(parts[0]),   # 1-based position in sentence
+                "word":     parts[1],        # surface form
+                "lemma":    parts[2],        # lemma
+                "upos":     parts[3],        # universal POS tag
+                "feats":    parts[5],        # morphological features
+                "head":     int(parts[6]),   # index of syntactic head (0 = root)
+                "deprel":   parts[7],        # dependency relation label
+                "chunk_id": chunk_id,        # e.g. "NP2", "VGF" (for PCFG)
             }
             current_sentence.append(token)
 
