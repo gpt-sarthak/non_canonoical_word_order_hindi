@@ -51,6 +51,7 @@ folder_structure.txt
 app.py
 
 # ── Reports and doc-generation scripts ───────────────────────────────────────
-reports/
+reports/**
+!reports/sentence_explorer.html   # demo frontend — track this
 scripts/generate_*.py
 scripts/create_*.py

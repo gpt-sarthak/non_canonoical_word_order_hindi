@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hindi Sentence Explorer</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8f7f4;color:#1a1a18;line-height:1.6;min-height:100vh}
+.page{max-width:980px;margin:0 auto;padding:2rem 1.5rem}
+
+/* Header */
+.header{margin-bottom:1.75rem}
+h1{font-size:1.5rem;font-weight:600;margin-bottom:.2rem}
+.subtitle{color:#6b6b65;font-size:.9rem}
+.nav-link{font-size:.8rem;color:#185FA5;text-decoration:none;margin-top:.4rem;display:inline-block}
+.nav-link:hover{text-decoration:underline}
+
+/* Tabs */
+.tabs{display:flex;gap:0;border-bottom:2px solid #e8e6df;margin-bottom:1.5rem}
+.tab-btn{padding:.5rem 1.25rem;font-size:.85rem;font-weight:500;background:none;border:none;cursor:pointer;color:#888;border-bottom:2px solid transparent;margin-bottom:-2px;font-family:inherit;transition:color .15s,border-color .15s}
+.tab-btn.active{color:#185FA5;border-bottom-color:#185FA5}
+.tab-btn:hover:not(.active){color:#444}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* Input area */
+.input-card{background:#fff;border-radius:14px;padding:1.5rem;border:1px solid #e8e6df;margin-bottom:1.25rem}
+.input-card h2{font-size:.8rem;font-weight:600;color:#6b6b65;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem}
+.input-row{display:flex;gap:.75rem;align-items:flex-start}
+.sentence-input{flex:1;font-size:1.05rem;font-family:inherit;border:1.5px solid #d8d5ce;border-radius:10px;padding:.65rem 1rem;outline:none;transition:border-color .15s;background:#fafaf8;resize:vertical;min-height:50px}
+.sentence-input:focus{border-color:#185FA5;background:#fff}
+.analyze-btn{padding:.65rem 1.4rem;font-size:.9rem;font-weight:600;background:#185FA5;color:#fff;border:none;border-radius:10px;cursor:pointer;white-space:nowrap;transition:background .15s;min-width:100px}
+.analyze-btn:hover{background:#145188}
+.analyze-btn:disabled{background:#b0c4d8;cursor:not-allowed}
+.examples{margin-top:.7rem;font-size:.8rem;color:#888}
+.examples span{font-weight:500;color:#555}
+.ex-btn{display:inline-block;margin:.2rem .3rem .2rem 0;padding:2px 9px;border:1px solid #d8d5ce;border-radius:6px;cursor:pointer;font-size:.78rem;color:#444;background:#fafaf8;transition:border-color .1s,background .1s;font-family:inherit}
+.ex-btn:hover{border-color:#185FA5;background:#eef4fb;color:#185FA5}
+
+/* Status */
+.status{padding:.6rem 1rem;border-radius:8px;font-size:.85rem;margin-bottom:1rem}
+.status.loading{background:#eef4fb;color:#185FA5}
+.status.error{background:#FCEBEB;color:#A32D2D;border:1px solid #f5c6c6}
+.status.warn{background:#FAEEDA;color:#633806;border:1px solid #f0d4a0}
+.status-hidden{display:none}
+
+/* Section card */
+.section-card{background:#fff;border-radius:12px;padding:1.25rem 1.5rem;border:1px solid #e8e6df;margin-bottom:1.1rem}
+.section-title{font-size:.78rem;font-weight:600;color:#6b6b65;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.875rem;display:flex;align-items:center;gap:.5rem}
+.toggle-btn{font-size:.72rem;color:#185FA5;background:none;border:none;cursor:pointer;padding:0;font-family:inherit;font-weight:400;text-decoration:underline;margin-left:auto}
+
+/* Parse table */
+.parse-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.parse-table th{text-align:left;padding:.3rem .6rem;border-bottom:2px solid #e8e6df;color:#6b6b65;font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.parse-table td{padding:.3rem .6rem;border-bottom:1px solid #f0ede6;vertical-align:middle}
+.parse-table tr:last-child td{border-bottom:none}
+.word-cell{font-size:.92rem;font-weight:500}
+.tag{display:inline-block;padding:1px 7px;border-radius:5px;font-size:.7rem;font-weight:500}
+.tag-NOUN,.tag-PROPN{background:#E6F1FB;color:#185FA5}
+.tag-VERB,.tag-AUX{background:#EAF3DE;color:#3B6D11}
+.tag-ADJ{background:#FFF0D0;color:#7A4800}
+.tag-ADP,.tag-PART{background:#F3F0F8;color:#5B4A8A}
+.tag-default{background:#F0EDE6;color:#555}
+.deprel-cell{font-size:.76rem;color:#777;font-family:monospace}
+.head-cell{font-size:.76rem;color:#999}
+
+/* Arc SVG diagram */
+.arc-diagram{overflow-x:auto;margin-top:.5rem}
+.arc-diagram svg{display:block}
+
+/* Results */
+.results-header{display:flex;align-items:center;gap:.75rem;margin-bottom:.875rem}
+.results-header h2{font-size:1rem;font-weight:600}
+.count-badge{font-size:.78rem;color:#888}
+.header-actions{display:flex;gap:.5rem;margin-left:auto;align-items:center}
+.icon-btn{padding:.3rem .75rem;font-size:.78rem;border:1px solid #d8d5ce;border-radius:7px;background:#fff;cursor:pointer;color:#444;font-family:inherit;transition:all .1s;display:flex;align-items:center;gap:.3rem}
+.icon-btn:hover{border-color:#185FA5;color:#185FA5;background:#eef4fb}
+.pivot-banner{background:#FFF8E6;border:1px solid #f0d4a0;border-radius:8px;padding:.5rem 1rem;font-size:.82rem;color:#633806;margin-bottom:.875rem;display:flex;align-items:center;gap:.75rem}
+.pivot-banner button{padding:2px 10px;border:1px solid #c8a060;border-radius:6px;background:#fff;cursor:pointer;font-size:.78rem;color:#633806;font-family:inherit}
+.pivot-banner button:hover{background:#faeeda}
+
+/* Reference card */
+.ref-card{background:#fff;border-radius:12px;padding:1.25rem 1.5rem;border:2px solid #185FA5;margin-bottom:1rem;position:relative}
+.ref-label{position:absolute;top:.75rem;right:1rem;font-size:.7rem;font-weight:600;color:#185FA5;text-transform:uppercase;letter-spacing:.06em}
+.sentence-text{font-size:1.05rem;font-weight:500;margin-bottom:.875rem;line-height:1.5;padding-right:5rem}
+.score-row{display:flex;gap:.875rem;flex-wrap:wrap;align-items:center}
+.score-chip{display:flex;flex-direction:column;align-items:flex-start;gap:1px}
+.score-label{font-size:.66rem;color:#888;text-transform:uppercase;letter-spacing:.04em}
+.score-val{font-size:.92rem;font-weight:600;color:#1a1a18}
+.score-val.good{color:#3B6D11}
+.score-val.bad{color:#A32D2D}
+.pill{display:inline-block;padding:2px 9px;border-radius:8px;font-size:.72rem;font-weight:600;cursor:help}
+.pill-SOV{background:#F0EDE6;color:#555}
+.pill-DOSV{background:#EDE9F8;color:#5B4A8A}
+.pill-IOSV{background:#EAF3DE;color:#3B6D11}
+.pill-OSV{background:#FAEEDA;color:#633806}
+.pill-unknown{background:#F0EDE6;color:#888}
+
+/* Sort + legend */
+.controls-row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.875rem}
+.sort-label{font-size:.8rem;color:#888;white-space:nowrap}
+.sort-btn{padding:3px 10px;border-radius:6px;border:1px solid #d8d5ce;background:#fafaf8;font-size:.77rem;cursor:pointer;color:#444;font-family:inherit;transition:all .1s}
+.sort-btn.active{background:#185FA5;color:#fff;border-color:#185FA5}
+.sort-btn:hover:not(.active){border-color:#888;background:#f0ede8}
+.legend-row{display:flex;gap:1rem;font-size:.75rem;color:#888;margin-bottom:.875rem;align-items:center;flex-wrap:wrap}
+.legend-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:3px;vertical-align:middle}
+
+/* Variant cards */
+.variant-list{display:flex;flex-direction:column;gap:.55rem}
+.variant-card{background:#fff;border-radius:10px;padding:.9rem 1.2rem;border:1px solid #e8e6df;transition:border-color .15s,box-shadow .15s}
+.variant-card:hover{border-color:#ccc;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.variant-card.ref-better{border-left:3px solid #3B6D11}
+.variant-card.variant-better{border-left:3px solid #e8e6df}
+.variant-card.pivoted{border:2px solid #f0a500;background:#fffdf5}
+
+.v-top{display:flex;align-items:flex-start;gap:.75rem;margin-bottom:.55rem}
+.v-index{font-size:.7rem;color:#aaa;font-weight:600;min-width:1.8rem;padding-top:3px}
+.v-sentence{font-size:.93rem;flex:1;line-height:1.5}
+.v-construction{margin-left:auto;flex-shrink:0}
+.moved-word{background:#FFF3C4;border-radius:3px;padding:0 2px}
+
+.delta-bars{display:flex;flex-direction:column;gap:.28rem}
+.delta-row{display:flex;align-items:center;gap:.5rem;font-size:.74rem}
+.delta-label{width:90px;color:#888;flex-shrink:0}
+.delta-bar-wrap{flex:1;height:5px;background:#f0ede6;border-radius:3px;overflow:visible;position:relative}
+.delta-bar{height:100%;border-radius:3px;min-width:2px;transition:width .3s}
+.delta-bar.green{background:#3B6D11}
+.delta-bar.red{background:#C04B4B}
+.delta-bar.neutral{background:#9b9590}
+.delta-num{width:58px;text-align:right;color:#555;font-family:monospace;font-size:.71rem}
+.delta-arrow{width:14px;text-align:center;font-size:.78rem}
+
+/* Arc changes detail */
+.arc-detail{margin-top:.6rem;padding-top:.6rem;border-top:1px solid #f0ede6}
+.arc-detail-title{font-size:.72rem;color:#888;margin-bottom:.35rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.arc-change-list{display:flex;flex-direction:column;gap:.2rem}
+.arc-change{display:flex;align-items:center;gap:.5rem;font-size:.76rem}
+.arc-change .arc-words{color:#444;flex:1}
+.arc-change .arc-words em{font-style:normal;font-family:monospace;font-size:.72rem;color:#888}
+.arc-len-change{display:flex;align-items:center;gap:.3rem}
+.arc-len{font-weight:600;font-family:monospace}
+.arc-len.shorter{color:#3B6D11}
+.arc-len.longer{color:#C04B4B}
+.arc-detail-toggle{font-size:.71rem;color:#185FA5;background:none;border:none;cursor:pointer;padding:0;font-family:inherit;margin-top:.4rem;display:block}
+
+/* Pivot click hint */
+.pivot-hint{font-size:.7rem;color:#aaa;margin-top:.4rem;display:flex;align-items:center;gap:.3rem}
+.pivot-click-zone{cursor:pointer}
+.pivot-click-zone:active .v-sentence{background:#fffbe6;border-radius:4px}
+
+/* Empty state */
+.empty{text-align:center;padding:3rem 1.5rem;color:#888}
+.empty-icon{font-size:2rem;margin-bottom:.75rem;opacity:.4}
+.empty h3{font-size:1rem;font-weight:500;margin-bottom:.25rem;color:#666}
+.empty p{font-size:.85rem}
+
+/* Batch tab */
+.batch-input{width:100%;font-size:.88rem;font-family:inherit;border:1.5px solid #d8d5ce;border-radius:10px;padding:.65rem 1rem;outline:none;background:#fafaf8;resize:vertical;min-height:130px;line-height:1.7}
+.batch-input:focus{border-color:#185FA5;background:#fff}
+.batch-controls{display:flex;gap:.5rem;align-items:center;margin-top:.75rem}
+.batch-note{font-size:.78rem;color:#888;margin-top:.5rem}
+.batch-table-wrap{overflow-x:auto;margin-top:1rem}
+.batch-table{width:100%;border-collapse:collapse;font-size:.8rem}
+.batch-table th{text-align:left;padding:.35rem .6rem;border-bottom:2px solid #e8e6df;color:#6b6b65;font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;font-weight:600;white-space:nowrap}
+.batch-table td{padding:.35rem .6rem;border-bottom:1px solid #f0ede6;vertical-align:middle}
+.batch-table tr:last-child td{border-bottom:none}
+.batch-table tr.error-row td{color:#A32D2D;font-style:italic}
+.num-cell{font-family:monospace;font-size:.77rem}
+.better{color:#3B6D11;font-weight:600}
+.worse{color:#C04B4B}
+.download-btn{padding:.5rem 1rem;font-size:.82rem;font-weight:600;background:#3B6D11;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;transition:background .15s}
+.download-btn:hover{background:#2d5409}
+.download-btn:disabled{background:#aaa;cursor:not-allowed}
+
+@media(max-width:600px){
+  .input-row{flex-direction:column}
+  .analyze-btn{width:100%}
+  .score-row{gap:.5rem}
+  .delta-label{width:70px}
+  .controls-row{gap:.3rem}
+  .header-actions{flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>Hindi Sentence Explorer</h1>
+    <div class="subtitle">Enter a Hindi sentence &mdash; generate word-order variants and compare their processing scores</div>
+    <a class="nav-link" href="/pipeline_analysis.html">&#8592; Pipeline analysis (corpus-level)</a>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('single')">Single sentence</button>
+    <button class="tab-btn" onclick="switchTab('batch')">Batch analysis</button>
+  </div>
+
+  <!-- ═══════════════════ SINGLE TAB ═══════════════════ -->
+  <div class="tab-panel active" id="tab-single">
+
+    <!-- Input -->
+    <div class="input-card">
+      <h2>Input sentence</h2>
+      <div class="input-row">
+        <textarea class="sentence-input" id="sentInput"
+          placeholder="राम ने सेब खाया।  (Ram ate the apple.)"
+          rows="2"></textarea>
+        <button class="analyze-btn" id="analyzeBtn" onclick="analyze()">Analyze</button>
+      </div>
+      <div class="examples">
+        <span>Try:</span>
+        <button class="ex-btn" onclick="fillExample(this)">राम ने सेब खाया</button>
+        <button class="ex-btn" onclick="fillExample(this)">सीता ने किताब पढ़ी</button>
+        <button class="ex-btn" onclick="fillExample(this)">मोहन ने बाजार में खाना खाया</button>
+        <button class="ex-btn" onclick="fillExample(this)">लड़की ने बड़े भाई को चिट्ठी लिखी</button>
+        <button class="ex-btn" onclick="fillExample(this)">अध्यापक ने छात्र को किताब दी</button>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div class="status status-hidden" id="statusMsg"></div>
+
+    <!-- Parse section -->
+    <div class="section-card" id="parseSection" style="display:none">
+      <div class="section-title">
+        Dependency parse
+        <button class="toggle-btn" onclick="toggleView()">Show arc diagram</button>
+      </div>
+      <!-- Table view -->
+      <div id="parseTableView">
+        <table class="parse-table">
+          <thead><tr><th>#</th><th>Word</th><th>POS</th><th>Relation</th><th>Head</th></tr></thead>
+          <tbody id="parseBody"></tbody>
+        </table>
+      </div>
+      <!-- Arc diagram view (hidden by default) -->
+      <div id="parseArcView" style="display:none">
+        <div class="arc-diagram" id="arcContainer"></div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div id="resultsSection" style="display:none">
+      <div class="results-header">
+        <h2>Results</h2>
+        <span class="count-badge" id="countBadge"></span>
+        <div class="header-actions">
+          <button class="icon-btn" onclick="exportCSV()" title="Download results as CSV">&#8595; CSV</button>
+          <button class="icon-btn" onclick="exportJSON()" title="Download results as JSON">&#8595; JSON</button>
+        </div>
+      </div>
+
+      <!-- Pivot banner -->
+      <div class="pivot-banner" id="pivotBanner" style="display:none">
+        <span>Pivoting on variant &mdash; deltas computed relative to selected sentence</span>
+        <button onclick="resetPivot()">Reset to original</button>
+      </div>
+
+      <!-- Reference card -->
+      <div class="ref-card" id="refCard">
+        <div class="ref-label" id="refLabel">Reference</div>
+        <div class="sentence-text" id="refSentence"></div>
+        <div class="score-row" id="refScores"></div>
+      </div>
+
+      <!-- Sort + legend -->
+      <div class="controls-row">
+        <span class="sort-label">Sort by:</span>
+        <button class="sort-btn active" id="sort-trigram" onclick="sortBy('trigram')">Trigram</button>
+        <button class="sort-btn" id="sort-lstm"    onclick="sortBy('lstm')">LSTM</button>
+        <button class="sort-btn" id="sort-dl"      onclick="sortBy('dl')">Dep. length</button>
+        <button class="sort-btn" id="sort-pcfg"    onclick="sortBy('pcfg')">PCFG</button>
+      </div>
+      <div class="legend-row">
+        <span><span class="legend-dot" style="background:#3B6D11"></span>lower than reference (model prefers)</span>
+        <span><span class="legend-dot" style="background:#C04B4B"></span>higher than reference</span>
+        <span><span class="legend-dot" style="background:#9b9590"></span>same</span>
+        <span style="margin-left:.5rem;font-size:.73rem;color:#bbb">&#9632; highlighted words moved position</span>
+        <span style="font-size:.73rem;color:#bbb">Click a variant to pivot</span>
+      </div>
+
+      <div class="variant-list" id="variantList"></div>
+    </div>
+
+    <!-- Empty state -->
+    <div class="empty" id="emptyState">
+      <div class="empty-icon">&#x1F4DD;</div>
+      <h3>Enter a Hindi sentence above</h3>
+      <p>The sentence needs a transitive verb with both a subject and object<br>so that word-order variants can be generated.</p>
+    </div>
+
+  </div><!-- /tab-single -->
+
+  <!-- ═══════════════════ BATCH TAB ═══════════════════ -->
+  <div class="tab-panel" id="tab-batch">
+    <div class="section-card">
+      <h2 style="font-size:.8rem;font-weight:600;color:#6b6b65;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem">Batch sentences</h2>
+      <textarea class="batch-input" id="batchInput"
+        placeholder="Paste one Hindi sentence per line&#10;&#10;राम ने सेब खाया&#10;सीता ने किताब पढ़ी&#10;अध्यापक ने छात्र को किताब दी"></textarea>
+      <div class="batch-controls">
+        <button class="analyze-btn" id="batchBtn" onclick="runBatch()">Analyze all</button>
+        <button class="download-btn" id="batchDownloadBtn" onclick="downloadBatchCSV()" disabled>&#8595; Download CSV</button>
+      </div>
+      <div class="batch-note">Sentences that don&rsquo;t meet structural requirements will be marked as errors. Analysis may take 5&ndash;10 s per sentence.</div>
+    </div>
+    <div class="status status-hidden" id="batchStatus"></div>
+    <div class="batch-table-wrap" id="batchTableWrap" style="display:none">
+      <table class="batch-table" id="batchTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Sentence</th>
+            <th>Type</th>
+            <th>Variants</th>
+            <th>Ref trigram</th>
+            <th>Min trigram</th>
+            <th>Ref LSTM</th>
+            <th>Min LSTM</th>
+            <th>Ref DL</th>
+            <th>Min DL</th>
+            <th>Ref PCFG</th>
+            <th>Min PCFG</th>
+          </tr>
+        </thead>
+        <tbody id="batchBody"></tbody>
+      </table>
+    </div>
+  </div><!-- /tab-batch -->
+
+</div><!-- /page -->
+
+<script>
+// ── State ──────────────────────────────────────────────────
+let currentData   = null;   // raw server response
+let currentSort   = 'trigram';
+let pivotIndex    = null;   // null = original reference
+let arcView       = false;
+let batchResults  = null;
+
+const CONSTRUCTION_TIPS = {
+  SOV:     "Canonical order: Subject → Object → Verb",
+  DOSV:    "Non-canonical: Direct Object moved to sentence-initial position",
+  IOSV:    "Non-canonical: Indirect Object moved to sentence-initial position",
+  OSV:     "Non-canonical: Object before Subject",
+  unknown: "Construction type undetermined",
+};
+
+// ── Tab switching ──────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ── Utilities ──────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function hide(id){ const el=document.getElementById(id); if(el) el.style.display='none'; }
+function show(id){ const el=document.getElementById(id); if(el) el.style.display=''; }
+
+function setStatus(msg, type, elId='statusMsg') {
+  const el = document.getElementById(elId);
+  el.textContent = msg;
+  el.className = 'status ' + (type || '');
+  if (!type) el.classList.add('status-hidden');
+}
+
+function setLoading(on) {
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = on;
+  btn.textContent = on ? 'Analyzing…' : 'Analyze';
+  if (on) setStatus('Parsing and scoring — this may take a few seconds…', 'loading');
+}
+
+function fillExample(btn) {
+  document.getElementById('sentInput').value = btn.textContent.trim();
+  document.getElementById('sentInput').focus();
+}
+
+// ── Analyze ────────────────────────────────────────────────
+async function analyze() {
+  const sentence = document.getElementById('sentInput').value.trim();
+  if (!sentence) return;
+
+  setLoading(true);
+  hide('parseSection');
+  hide('resultsSection');
+  hide('emptyState');
+  pivotIndex = null;
+
+  try {
+    const resp = await fetch('http://localhost:5001/analyze', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({sentence}),
+    });
+    const data = await resp.json();
+    setLoading(false);
+
+    if (!resp.ok || data.error) {
+      setStatus(data.error || 'Server error.', 'error');
+      if (data.parsed) renderParse(data.parsed, null);
+      show('emptyState');
+      return;
+    }
+
+    setStatus('', null);
+    currentData  = data;
+    currentSort  = 'trigram';
+    arcView      = false;
+    updateSortButtons();
+    renderAll(data);
+
+  } catch (e) {
+    setLoading(false);
+    setStatus('Could not reach the server. Make sure demo_server.py is running on port 5001.', 'error');
+    show('emptyState');
+  }
+}
+
+// ── Toggle parse view ──────────────────────────────────────
+function toggleView() {
+  arcView = !arcView;
+  const btn = document.querySelector('.toggle-btn');
+  if (arcView) {
+    hide('parseTableView');
+    show('parseArcView');
+    btn.textContent = 'Show table';
+    if (currentData) renderArcDiagram(currentData.parse);
+  } else {
+    show('parseTableView');
+    hide('parseArcView');
+    btn.textContent = 'Show arc diagram';
+  }
+}
+
+// ── Render all ─────────────────────────────────────────────
+function renderAll(data) {
+  renderParse(data.parse, data.reference.arcs);
+  renderReference(getActiveRef());
+  renderVariants();
+  show('parseSection');
+  show('resultsSection');
+}
+
+// ── Parse table ────────────────────────────────────────────
+function renderParse(parse, arcs) {
+  const tbody = document.getElementById('parseBody');
+  tbody.innerHTML = '';
+  if (!parse) return;
+  parse.forEach(t => {
+    const tagClass = 'tag-' + (
+      ['NOUN','PROPN','VERB','AUX','ADJ','ADP','PART'].includes(t.upos) ? t.upos : 'default'
+    );
+    const headWord = t.head === 0 ? 'ROOT' : (parse.find(x => x.id === t.head) || {}).word || t.head;
+    tbody.innerHTML += `
+      <tr>
+        <td class="head-cell">${t.id}</td>
+        <td class="word-cell">${esc(t.word)}</td>
+        <td><span class="tag ${tagClass}">${t.upos}</span></td>
+        <td class="deprel-cell">${t.deprel}</td>
+        <td class="head-cell">${esc(String(headWord))}</td>
+      </tr>`;
+  });
+}
+
+// ── Arc diagram SVG ────────────────────────────────────────
+const DEPREL_COLORS = {
+  nsubj: '#185FA5', 'nsubj:pass': '#185FA5',
+  obj: '#E07000', iobj: '#E07000',
+  root: '#A32D2D',
+  compound: '#3B6D11', amod: '#3B6D11', acl: '#3B6D11',
+  advmod: '#7A4800', advcl: '#7A4800',
+  det: '#5B4A8A', case: '#5B4A8A', mark: '#5B4A8A',
+};
+
+function deprelColor(rel) {
+  return DEPREL_COLORS[rel] || '#888';
+}
+
+function renderArcDiagram(parse) {
+  const container = document.getElementById('arcContainer');
+  container.innerHTML = '';
+  if (!parse || parse.length === 0) return;
+
+  const n        = parse.length;
+  const W        = Math.max(container.clientWidth || 700, n * 60 + 40);
+  const padH     = 20;
+  const wordY    = 130;
+  const svgH     = wordY + 50;
+  const colW     = (W - padH * 2) / n;
+
+  // x center of each token (1-indexed)
+  const xOf = id => padH + (id - 0.5) * colW;
+
+  let svg = `<svg width="${W}" height="${svgH}" xmlns="http://www.w3.org/2000/svg" style="font-family:inherit">`;
+
+  // Draw arcs
+  parse.forEach(t => {
+    if (t.head === 0) return;
+    const x1  = xOf(t.id);
+    const x2  = xOf(t.head);
+    const mid = (x1 + x2) / 2;
+    const span = Math.abs(t.id - t.head);
+    const arcH = Math.min(20 + span * 18, wordY - 10);
+    const cy   = wordY - arcH;
+    const col  = deprelColor(t.deprel);
+    const bend = `M ${x1} ${wordY} C ${x1} ${cy}, ${x2} ${cy}, ${x2} ${wordY}`;
+    svg += `<path d="${bend}" fill="none" stroke="${col}" stroke-width="1.5" opacity=".85"/>`;
+    // Label
+    const labelX = mid;
+    const labelY = cy - 3;
+    svg += `<text x="${labelX}" y="${labelY}" text-anchor="middle" font-size="9" fill="${col}" opacity=".9">${esc(t.deprel)}</text>`;
+    // Arrow head at token end
+    const arrowDir = t.id < t.head ? 1 : -1;
+    svg += `<polygon points="${x2},${wordY} ${x2 - arrowDir*5},${wordY-6} ${x2 - arrowDir*5},${wordY+6}" fill="${col}" opacity=".8"/>`;
+  });
+
+  // Draw words
+  parse.forEach(t => {
+    const x = xOf(t.id);
+    const tagClass = ['NOUN','PROPN','VERB','AUX','ADJ','ADP','PART'].includes(t.upos) ? t.upos : 'default';
+    const bgColors = {
+      NOUN:'#E6F1FB', PROPN:'#E6F1FB', VERB:'#EAF3DE', AUX:'#EAF3DE',
+      ADJ:'#FFF0D0', ADP:'#F3F0F8', PART:'#F3F0F8', default:'#F0EDE6',
+    };
+    const bg = bgColors[tagClass] || '#F0EDE6';
+    const ww = Math.min(colW - 6, 70);
+    svg += `
+      <rect x="${x - ww/2}" y="${wordY + 2}" width="${ww}" height="22" rx="5" fill="${bg}"/>
+      <text x="${x}" y="${wordY + 17}" text-anchor="middle" font-size="12" font-weight="500" fill="#1a1a18">${esc(t.word)}</text>
+      <text x="${x}" y="${wordY + 35}" text-anchor="middle" font-size="9" fill="#888">${t.upos}</text>`;
+  });
+
+  // ROOT marker
+  const rootTok = parse.find(t => t.head === 0);
+  if (rootTok) {
+    const rx = xOf(rootTok.id);
+    svg += `<line x1="${rx}" y1="0" x2="${rx}" y2="${wordY}" stroke="#A32D2D" stroke-width="1.5" stroke-dasharray="4,3" opacity=".5"/>`;
+    svg += `<text x="${rx}" y="10" text-anchor="middle" font-size="9" fill="#A32D2D">ROOT</text>`;
+  }
+
+  svg += '</svg>';
+  container.innerHTML = svg;
+}
+
+// ── Construction pill ──────────────────────────────────────
+function constructionPill(c) {
+  const tip = CONSTRUCTION_TIPS[c] || CONSTRUCTION_TIPS.unknown;
+  return `<span class="pill pill-${c || 'unknown'}" title="${tip}">${c || '?'}</span>`;
+}
+
+// ── Active reference (original or pivot) ───────────────────
+function getActiveRef() {
+  if (pivotIndex === null) return currentData.reference;
+  const v = currentData.variants[pivotIndex];
+  return {
+    sentence:     v.sentence,
+    trigram:      v.trigram,
+    lstm:         v.lstm,
+    dl:           v.dl,
+    pcfg:         v.pcfg,
+    construction: v.construction,
+  };
+}
+
+// ── Reference card ─────────────────────────────────────────
+function renderReference(ref) {
+  document.getElementById('refSentence').textContent = ref.sentence;
+  const pcfgChip = ref.pcfg != null
+    ? `<div class="score-chip"><div class="score-label">PCFG surprisal</div><div class="score-val">${ref.pcfg.toFixed(1)}</div></div>`
+    : '';
+  document.getElementById('refScores').innerHTML = `
+    ${constructionPill(ref.construction)}
+    <div class="score-chip">
+      <div class="score-label">Trigram surprisal</div>
+      <div class="score-val">${ref.trigram.toFixed(1)}</div>
+    </div>
+    <div class="score-chip">
+      <div class="score-label">LSTM surprisal</div>
+      <div class="score-val">${ref.lstm.toFixed(1)}</div>
+    </div>
+    <div class="score-chip">
+      <div class="score-label">Dep. length</div>
+      <div class="score-val">${ref.dl}</div>
+    </div>
+    ${pcfgChip}
+  `;
+  document.getElementById('pivotBanner').style.display = pivotIndex !== null ? '' : 'none';
+  document.getElementById('refLabel').textContent = pivotIndex !== null ? 'Pivot (variant)' : 'Reference';
+  document.getElementById('countBadge').textContent = '';
+}
+
+// ── Sort ───────────────────────────────────────────────────
+function sortBy(key) {
+  currentSort = key;
+  updateSortButtons();
+  if (currentData) renderVariants();
+}
+
+function updateSortButtons() {
+  ['trigram','lstm','dl','pcfg'].forEach(k => {
+    document.getElementById('sort-'+k).classList.toggle('active', k === currentSort);
+  });
+}
+
+// ── Pivot ──────────────────────────────────────────────────
+function setPivot(idx) {
+  pivotIndex = idx;
+  renderReference(getActiveRef());
+  renderVariants();
+}
+
+function resetPivot() {
+  pivotIndex = null;
+  renderReference(getActiveRef());
+  renderVariants();
+}
+
+// ── Variants ───────────────────────────────────────────────
+function renderVariants() {
+  const ref      = getActiveRef();
+  const variants = currentData.variants;
+  const sorted   = [...variants.entries()].sort((a, b) => {
+    const va = a[1][currentSort];
+    const vb = b[1][currentSort];
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    return va - vb;
+  });
+
+  document.getElementById('countBadge').textContent =
+    `${variants.length} variant${variants.length !== 1 ? 's' : ''}`;
+
+  // Scales for bars
+  const maxOf = key => Math.max(...variants.map(v => {
+    const rv = ref[key];
+    const vv = v[key];
+    if (rv == null || vv == null) return 0;
+    return Math.abs(vv - rv);
+  }), 1);
+  const maxTri  = maxOf('trigram');
+  const maxLst  = maxOf('lstm');
+  const maxDL   = maxOf('dl');
+  const maxPCFG = maxOf('pcfg');
+
+  const list = document.getElementById('variantList');
+  list.innerHTML = '';
+
+  sorted.forEach(([origIdx, v], rank) => {
+    const isPivoted  = origIdx === pivotIndex;
+    const dTri = ref.trigram != null && v.trigram != null ? v.trigram - ref.trigram : null;
+    const dLst = ref.lstm    != null && v.lstm    != null ? v.lstm    - ref.lstm    : null;
+    const dDL  = v.dl        - ref.dl;
+    const dPCFG = ref.pcfg != null && v.pcfg != null ? v.pcfg - ref.pcfg : null;
+
+    // Moved-word highlighted sentence
+    const sentHtml = buildSentenceHtml(v.sentence, v.moved_ids, v.order);
+
+    // Arc changes section
+    const arcHtml = buildArcChangesHtml(v.arc_changes);
+
+    const cardClass = [
+      'variant-card',
+      isPivoted ? 'pivoted' : (dTri !== null ? (dTri < 0 ? 'ref-better' : 'variant-better') : ''),
+    ].join(' ');
+
+    list.innerHTML += `
+      <div class="${cardClass}" id="vcard-${origIdx}">
+        <div class="v-top pivot-click-zone" onclick="setPivot(${origIdx})" title="Click to pivot — compute deltas relative to this sentence">
+          <div class="v-index">${rank + 1}</div>
+          <div class="v-sentence">${sentHtml}</div>
+          <div class="v-construction">${constructionPill(v.construction)}</div>
+        </div>
+        <div class="delta-bars">
+          ${deltaBar('Trigram', dTri, maxTri)}
+          ${deltaBar('LSTM',    dLst, maxLst)}
+          ${deltaBar('Dep. len', dDL, maxDL)}
+          ${v.pcfg != null ? deltaBar('PCFG', dPCFG, maxPCFG) : ''}
+        </div>
+        ${arcHtml}
+      </div>`;
+  });
+}
+
+function buildSentenceHtml(sentence, movedIds, order) {
+  if (!movedIds || movedIds.length === 0) return esc(sentence);
+  const words  = sentence.split(' ');
+  const movedSet = new Set(movedIds);
+  return words.map((word, i) => {
+    const tokId = order ? order[i] : null;
+    const moved = tokId != null && movedSet.has(tokId);
+    return moved
+      ? `<span class="moved-word" title="This word changed position">${esc(word)}</span>`
+      : esc(word);
+  }).join(' ');
+}
+
+function buildArcChangesHtml(arcChanges) {
+  if (!arcChanges || arcChanges.length === 0) return '';
+  const id = 'ac_' + Math.random().toString(36).slice(2);
+  const rows = arcChanges.map(a => {
+    const cls    = a.delta < 0 ? 'shorter' : 'longer';
+    const sign   = a.delta > 0 ? '+' : '';
+    return `<div class="arc-change">
+      <span class="arc-words">${esc(a.word)} &#8594; ${esc(a.head)} <em>(${a.deprel})</em></span>
+      <span class="arc-len-change">
+        <span class="arc-len ${cls}">${a.ref_len} &#8594; ${a.var_len} (${sign}${a.delta})</span>
+      </span>
+    </div>`;
+  }).join('');
+  return `
+    <div class="arc-detail" id="${id}" style="display:none">
+      <div class="arc-detail-title">Dependency arc length changes</div>
+      <div class="arc-change-list">${rows}</div>
+    </div>
+    <button class="arc-detail-toggle" onclick="toggleArcDetail('${id}', this)">
+      Show arc changes (${arcChanges.length})
+    </button>`;
+}
+
+function toggleArcDetail(id, btn) {
+  const el = document.getElementById(id);
+  const hidden = el.style.display === 'none';
+  el.style.display = hidden ? '' : 'none';
+  btn.textContent = hidden
+    ? 'Hide arc changes'
+    : `Show arc changes (${el.querySelectorAll('.arc-change').length})`;
+}
+
+// ── Delta bar ──────────────────────────────────────────────
+function deltaBar(label, delta, maxVal) {
+  if (delta === null || delta === undefined) return '';
+  const pct   = Math.min(Math.abs(delta) / maxVal * 100, 100);
+  const cls   = delta < -0.01 ? 'green' : delta > 0.01 ? 'red' : 'neutral';
+  const arrow = delta < -0.01 ? '&#8595;' : delta > 0.01 ? '&#8593;' : '=';
+  const sign  = delta > 0 ? '+' : '';
+  const num   = Number.isInteger(delta) ? sign + delta : sign + delta.toFixed(1);
+  const color = cls === 'green' ? '#3B6D11' : cls === 'red' ? '#C04B4B' : '#888';
+  return `
+    <div class="delta-row">
+      <div class="delta-label">${label}</div>
+      <div class="delta-bar-wrap">
+        <div class="delta-bar ${cls}" style="width:${pct}%"></div>
+      </div>
+      <div class="delta-arrow" style="color:${color}">${arrow}</div>
+      <div class="delta-num">${num}</div>
+    </div>`;
+}
+
+// ── Export ─────────────────────────────────────────────────
+function exportCSV() {
+  if (!currentData) return;
+  const ref = currentData.reference;
+  const rows = [
+    ['type','sentence','construction','trigram','lstm','dl','pcfg',
+     'delta_trigram','delta_lstm','delta_dl','delta_pcfg','moved_words'],
+    ['reference', ref.sentence, ref.construction, ref.trigram, ref.lstm, ref.dl, ref.pcfg ?? '',
+     '', '', '', '', ''],
+    ...currentData.variants.map(v => [
+      'variant', v.sentence, v.construction, v.trigram, v.lstm, v.dl, v.pcfg ?? '',
+      v.trigram - ref.trigram,
+      v.lstm    - ref.lstm,
+      v.dl      - ref.dl,
+      v.pcfg != null && ref.pcfg != null ? v.pcfg - ref.pcfg : '',
+      (v.moved_ids || []).length,
+    ]),
+  ];
+  downloadFile(
+    rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n'),
+    'hindi_explorer_results.csv',
+    'text/csv'
+  );
+}
+
+function exportJSON() {
+  if (!currentData) return;
+  downloadFile(JSON.stringify(currentData, null, 2), 'hindi_explorer_results.json', 'application/json');
+}
+
+function downloadFile(content, filename, mime) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], {type: mime}));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ── Batch analysis ─────────────────────────────────────────
+async function runBatch() {
+  const raw = document.getElementById('batchInput').value;
+  const sentences = raw.split('\n').map(s => s.trim()).filter(Boolean);
+  if (sentences.length === 0) return;
+
+  const btn = document.getElementById('batchBtn');
+  btn.disabled = true;
+  btn.textContent = 'Analyzing…';
+  setStatus(`Analyzing ${sentences.length} sentence(s)…`, 'loading', 'batchStatus');
+  hide('batchTableWrap');
+  document.getElementById('batchDownloadBtn').disabled = true;
+
+  try {
+    const resp = await fetch('http://localhost:5001/batch', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({sentences}),
+    });
+    const data = await resp.json();
+    btn.disabled = false;
+    btn.textContent = 'Analyze all';
+
+    if (!resp.ok || data.error) {
+      setStatus(data.error || 'Server error.', 'error', 'batchStatus');
+      return;
+    }
+    setStatus('', null, 'batchStatus');
+    batchResults = data;
+    renderBatchTable(data);
+    document.getElementById('batchDownloadBtn').disabled = false;
+    show('batchTableWrap');
+
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'Analyze all';
+    setStatus('Could not reach the server.', 'error', 'batchStatus');
+  }
+}
+
+function renderBatchTable(rows) {
+  const tbody = document.getElementById('batchBody');
+  tbody.innerHTML = '';
+  rows.forEach((r, i) => {
+    if (r.error) {
+      tbody.innerHTML += `
+        <tr class="error-row">
+          <td>${i+1}</td>
+          <td colspan="11">${esc(r.sentence || '')} — ${esc(r.error)}</td>
+        </tr>`;
+      return;
+    }
+    const minTri  = r.min_trigram != null ? r.min_trigram.toFixed(1) : '—';
+    const minLst  = r.min_lstm    != null ? r.min_lstm.toFixed(1)    : '—';
+    const minPCFG = r.min_pcfg   != null ? r.min_pcfg.toFixed(1)    : '—';
+    const triCls  = r.min_trigram < r.ref_trigram ? 'better' : '';
+    const lstCls  = r.min_lstm    < r.ref_lstm    ? 'better' : '';
+    const pcfgCls = r.min_pcfg   < r.ref_pcfg    ? 'better' : '';
+    tbody.innerHTML += `
+      <tr>
+        <td>${i+1}</td>
+        <td>${esc(r.sentence)}</td>
+        <td>${constructionPill(r.construction)}</td>
+        <td class="num-cell">${r.n_variants}</td>
+        <td class="num-cell">${r.ref_trigram != null ? r.ref_trigram.toFixed(1) : '—'}</td>
+        <td class="num-cell ${triCls}">${minTri}</td>
+        <td class="num-cell">${r.ref_lstm    != null ? r.ref_lstm.toFixed(1)    : '—'}</td>
+        <td class="num-cell ${lstCls}">${minLst}</td>
+        <td class="num-cell">${r.ref_dl      != null ? r.ref_dl                 : '—'}</td>
+        <td class="num-cell ${r.min_dl < r.ref_dl ? 'better' : ''}">${r.min_dl != null ? r.min_dl : '—'}</td>
+        <td class="num-cell">${r.ref_pcfg   != null ? r.ref_pcfg.toFixed(1)    : '—'}</td>
+        <td class="num-cell ${pcfgCls}">${minPCFG}</td>
+      </tr>`;
+  });
+}
+
+function downloadBatchCSV() {
+  if (!batchResults) return;
+  const headers = ['sentence','construction','n_variants',
+    'ref_trigram','min_trigram','ref_lstm','min_lstm',
+    'ref_dl','min_dl','ref_pcfg','min_pcfg','error'];
+  const rows = [headers, ...batchResults.map(r => headers.map(h => r[h] ?? ''))];
+  downloadFile(
+    rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n'),
+    'hindi_batch_results.csv',
+    'text/csv'
+  );
+}
+
+// ── Keyboard shortcut ──────────────────────────────────────
+document.getElementById('sentInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); analyze(); }
+});
+</script>
+</body>
+</html>
