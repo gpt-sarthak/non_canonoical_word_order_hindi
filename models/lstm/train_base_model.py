@@ -90,4 +90,39 @@ def train():
 
 
 if __name__ == "__main__":
-    train()
+    # ── Inspection mode — does NOT retrain ───────────────────────
+    # If base_model.pt exists: load it and print stats.
+    # If missing: print training instructions.
+    #
+    # To actually train (takes ~1-2 hours on CPU, ~20 min on GPU):
+    #   cd models/lstm
+    #   python train_base_model.py   ← remove this guard first
+    # ─────────────────────────────────────────────────────────────
+    import sys
+    sys.path.insert(0, ".")
+
+    if not os.path.exists(SAVE_PATH):
+        print(f"No trained model found at {SAVE_PATH}")
+        if os.path.exists(CHECKPOINT_PATH):
+            print(f"Partial checkpoint found at {CHECKPOINT_PATH} — training was interrupted.")
+            ckpt = torch.load(CHECKPOINT_PATH, map_location="cpu")
+            print(f"  Completed epochs : {ckpt['epoch']} / {EPOCHS}")
+        else:
+            print("No checkpoint found either. Run train() to start training.")
+        sys.exit(0)
+
+    with open(VOCAB_FILE, "rb") as f:
+        vocab = pickle.load(f)
+    vocab_size = len(vocab["word2idx"])
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model  = LSTMLanguageModel(vocab_size).to(device)
+    model.load_state_dict(torch.load(SAVE_PATH, map_location=device))
+    model.eval()
+
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f"Model             : {SAVE_PATH}")
+    print(f"Vocab size        : {vocab_size}")
+    print(f"Device            : {device}")
+    print(f"Total parameters  : {total_params:,}")
+    print(f"Training config   : epochs={EPOCHS}, lr={LR}, batch={BATCH_SIZE}, seq_len={SEQ_LEN}")

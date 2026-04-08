@@ -207,10 +207,18 @@ h1{font-size:1.5rem;font-weight:600;margin-bottom:.2rem}
       <h2>Input sentence</h2>
       <div class="input-row">
         <textarea class="sentence-input" id="sentInput"
-          placeholder="राम ने सेब खाया।  (Ram ate the apple.)"
-          rows="2"></textarea>
+          placeholder="राम ने सेब खाया।  or type in Roman: raam ne seb khaayaa"
+          rows="2" oninput="onSentInput()"></textarea>
         <button class="analyze-btn" id="analyzeBtn" onclick="analyze()">Analyze</button>
       </div>
+      <!-- Roman toggle + transliteration preview -->
+      <div style="display:flex;align-items:center;gap:.6rem;margin-top:.5rem;font-size:.82rem;color:#666">
+        <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer">
+          <input type="checkbox" id="romanToggle" onchange="onRomanToggle()" style="cursor:pointer">
+          Type in Roman (ITRANS) — e.g. <code style="font-size:.8rem">raam ne seb khaayaa</code>
+        </label>
+      </div>
+      <div id="translitPreview" style="min-height:1.3em;font-size:.88rem;color:#185FA5;margin-top:.3rem;padding-left:2px"></div>
       <div class="examples">
         <span>Try:</span>
         <button class="ex-btn" onclick="fillExample(this)">राम ने सेब खाया</button>
@@ -335,11 +343,13 @@ h1{font-size:1.5rem;font-weight:600;margin-bottom:.2rem}
 
 <script>
 // ── State ──────────────────────────────────────────────────
-let currentData   = null;   // raw server response
-let currentSort   = 'trigram';
-let pivotIndex    = null;   // null = original reference
-let arcView       = false;
-let batchResults  = null;
+let currentData      = null;
+let currentSort      = 'trigram';
+let pivotIndex       = null;
+let arcView          = false;
+let batchResults     = null;
+let translitDebounce = null;
+let lastTranslit     = '';   // Devanagari result of current Roman input
 
 const CONSTRUCTION_TIPS = {
   SOV:     "Canonical order: Subject → Object → Verb",
@@ -379,13 +389,70 @@ function setLoading(on) {
 }
 
 function fillExample(btn) {
+  // Example buttons always contain Devanagari — turn off Roman mode
+  document.getElementById('romanToggle').checked = false;
+  document.getElementById('translitPreview').textContent = '';
+  lastTranslit = '';
+  document.getElementById('sentInput').placeholder =
+    'राम ने सेब खाया।  or type in Roman: raam ne seb khaayaa';
   document.getElementById('sentInput').value = btn.textContent.trim();
   document.getElementById('sentInput').focus();
 }
 
+function onRomanToggle() {
+  const roman = document.getElementById('romanToggle').checked;
+  const input = document.getElementById('sentInput');
+  if (roman) {
+    input.placeholder = 'Type in ITRANS Roman: raam ne seb khaayaa';
+    input.value = '';
+    document.getElementById('translitPreview').textContent = '';
+    lastTranslit = '';
+  } else {
+    input.placeholder = 'राम ने सेब खाया।  or type in Roman: raam ne seb khaayaa';
+    document.getElementById('translitPreview').textContent = '';
+    lastTranslit = '';
+    input.value = '';
+  }
+  input.focus();
+}
+
+function onSentInput() {
+  const roman = document.getElementById('romanToggle').checked;
+  if (!roman) { lastTranslit = ''; return; }
+
+  clearTimeout(translitDebounce);
+  translitDebounce = setTimeout(async () => {
+    const q = document.getElementById('sentInput').value.trim();
+    if (!q) { document.getElementById('translitPreview').textContent = ''; lastTranslit = ''; return; }
+    const res = await fetch('http://localhost:5001/transliterate?q=' + encodeURIComponent(q));
+    const data = await res.json();
+    lastTranslit = data.result || '';
+    document.getElementById('translitPreview').textContent =
+      lastTranslit ? '→  ' + lastTranslit : '';
+  }, 300);
+}
+
 // ── Analyze ────────────────────────────────────────────────
 async function analyze() {
-  const sentence = document.getElementById('sentInput').value.trim();
+  const roman    = document.getElementById('romanToggle').checked;
+  const rawInput = document.getElementById('sentInput').value.trim();
+  if (!rawInput) return;
+
+  // If Roman mode: use transliterated Devanagari; fetch it now if not ready yet
+  let sentence = rawInput;
+  if (roman) {
+    if (lastTranslit) {
+      sentence = lastTranslit;
+    } else {
+      // Transliteration hasn't resolved yet — fetch synchronously
+      const res = await fetch('http://localhost:5001/transliterate?q=' + encodeURIComponent(rawInput));
+      const data = await res.json();
+      sentence = data.result || rawInput;
+      lastTranslit = sentence;
+      document.getElementById('translitPreview').textContent =
+        sentence ? '→  ' + sentence : '';
+    }
+  }
   if (!sentence) return;
 
   setLoading(true);

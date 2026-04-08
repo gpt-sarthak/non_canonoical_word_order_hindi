@@ -221,3 +221,49 @@ def compute_trigram_features(dataset, model):
         })
 
     return results
+
+
+# ─────────────────────────────────────────────────────────────
+# __main__ — standalone debug using real pair from features.csv
+#
+# Loads the trained trigram model and scores the first DOSV pair
+# from features.csv, then compares against the stored delta.
+#
+# Expected (features.csv, sentence_id=0, DOSV):
+#   reference       : इसे नवाब शाहजेहन ने बनवाया था ।
+#   variant         : नवाब शाहजेहन ने इसे बनवाया था ।
+#   stored delta_trigram ≈ -1.576
+# ─────────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    import sys
+    import pandas as pd
+    sys.path.insert(0, ".")
+
+    TRIGRAM_PATH = "models/trigram/trigram.pkl"
+
+    df  = pd.read_csv("data/features/features.csv")
+    row = df[df["construction_type"] == "DOSV"].iloc[0]
+    ref = row["reference"]
+    var = row["variant"]
+
+    print(f"reference : {ref}")
+    print(f"variant   : {var}")
+    print(f"stored delta_trigram : {row['delta_trigram']:.4f}")
+
+    print(f"\nLoading trigram model from {TRIGRAM_PATH} ...")
+    model = load_trigram_model(TRIGRAM_PATH)
+
+    s_ref = sentence_trigram_surprisal(ref, model)
+    s_var = sentence_trigram_surprisal(var, model)
+    delta = s_ref - s_var
+
+    print(f"\ntrigram_reference : {s_ref:.4f}")
+    print(f"trigram_variant   : {s_var:.4f}")
+    print(f"delta_trigram     : {delta:.4f}")
+    print(f"matches stored    : {abs(delta - row['delta_trigram']) < 1e-6}")
+
+    # Also show per-word breakdown for the reference
+    print(f"\nPer-word surprisal (reference):")
+    for entry in per_word_trigram_surprisal(ref, model):
+        surp = f"{entry['surprisal']:.3f}" if entry["surprisal"] is not None else "n/a"
+        print(f"  pos={entry['position']}  {entry['word']:<20} surprisal={surp}  [{entry['backoff']}]")

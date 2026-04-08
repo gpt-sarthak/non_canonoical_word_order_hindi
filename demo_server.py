@@ -29,6 +29,7 @@ import torch
 import stanza
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from indic_transliteration import sanscript
 
 # ── Project root on path ──────────────────────────────────────
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -84,13 +85,20 @@ pcfg_model = build_pcfg_from_trees(_trees)
 del _trees
 print("  Done.")
 
-print("Loading Stanza Hindi parser (downloads on first use)...")
-stanza.download("hi", verbose=False)
+print("Loading Stanza Hindi parser...")
+_stanza_hi_dir = os.path.join(os.path.expanduser("~"), "stanza_resources", "hi")
+if not os.path.exists(_stanza_hi_dir):
+    print("  Hindi model not found locally — downloading (~500 MB)...")
+    stanza.download("hi", verbose=False)
+    print("  Download complete.")
+else:
+    print("  Using cached model at:", _stanza_hi_dir)
 nlp = stanza.Pipeline(
     "hi",
     processors="tokenize,pos,lemma,depparse",
     verbose=False,
     use_gpu=torch.cuda.is_available(),
+    download_method=stanza.DownloadMethod.REUSE_RESOURCES,
 )
 print("  Done.")
 
@@ -99,20 +107,31 @@ print("  Done.")
 # ─────────────────────────────────────────────────────────────
 
 def stanza_to_tokens(doc):
-    """Convert a Stanza document to our token-dict format."""
+    """
+    Convert a Stanza document to our token-dict format.
+
+    For longer inputs Stanza may split into multiple sentences. We only
+    use the FIRST sentence — taking the longest one avoids the case where
+    a trailing punctuation mark becomes its own sentence.
+    """
+    if not doc.sentences:
+        return []
+
+    # Pick the sentence with the most words (handles trailing punct splits)
+    sent = max(doc.sentences, key=lambda s: len(s.words))
+
     tokens = []
-    for sent in doc.sentences:
-        for word in sent.words:
-            tokens.append({
-                "id":       word.id,
-                "word":     word.text,
-                "lemma":    word.lemma or word.text,
-                "upos":     word.upos  or "_",
-                "feats":    word.feats or "_",
-                "head":     word.head,
-                "deprel":   word.deprel or "_",
-                "chunk_id": None,
-            })
+    for word in sent.words:
+        tokens.append({
+            "id":       word.id,
+            "word":     word.text,
+            "lemma":    word.lemma or word.text,
+            "upos":     word.upos  or "_",
+            "feats":    word.feats or "_",
+            "head":     word.head,
+            "deprel":   word.deprel or "_",
+            "chunk_id": None,
+        })
     return tokens
 
 
@@ -324,6 +343,21 @@ app = Flask(__name__, static_folder=None)
 CORS(app)
 
 REPORTS_DIR = os.path.join(ROOT, "reports")
+
+
+@app.route("/transliterate")
+def transliterate():
+    """
+    Convert ITRANS Roman input to Devanagari.
+    e.g. "raam ne seb khaayaa" → "राम ने सेब खाया"
+    """
+    text = request.args.get("q", "").strip().lower()
+    if not text:
+        return jsonify({"result": ""})
+    hindi = sanscript.transliterate(text, sanscript.ITRANS, sanscript.DEVANAGARI)
+    # Strip trailing halant (् ) that appears on consonant-final words
+    hindi = hindi.replace("् ", " ").replace("्।", "।").rstrip("्")
+    return jsonify({"result": hindi})
 
 
 @app.route("/")

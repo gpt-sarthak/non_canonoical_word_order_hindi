@@ -1,25 +1,42 @@
 """
 build_feature_dataset.py
 
-Full feature extraction pipeline following:
+Full feature extraction pipeline — runs all 6 features end-to-end
+and writes data/features/features.csv.
+
+Reference:
     Ranjan & van Schijndel (2024)
     "Does Dependency Locality Predict Non-canonical Word Order in Hindi?"
 
-Steps:
-    1.  Load HDTB treebank
-    2.  Filter sentences (paper criteria)
-    3.  Generate permuted variants (max 99, random sample, deprel filter)
-    4.  Dependency Length (DL)
-    5.  Trigram surprisal  (NLTK MLE, three-level backoff)
-    6.  LSTM surprisal
-    7.  Adaptive LSTM surprisal  (adapt on context, reset per sentence)
-    8.  Information Status / givenness score
-    9.  PCFG surprisal  (5-fold CV on all HUTB trees, fast direct chunk scoring)
-    10. Save features.csv
+Required inputs (must exist before running):
+    data/raw/UD_Hindi-HDTB/hi_hdtb-ud-train.conllu  — HDTB treebank
+    models/trigram/trigram.pkl                        — trained trigram model
+    models/lstm/base_model.pt                         — trained LSTM model
+    data/processed/vocab.pkl                          — vocabulary mapping
 
-IS and PCFG features require token-level parse data (tokens, order,
-context) which exist in memory during the pipeline but are not saved
-to CSV. They MUST be computed before Step 10.
+Output:
+    data/features/features.csv
+    ~92,000 rows × 22 columns
+    Each row is one (reference, variant) pair with all 6 delta features.
+
+Pipeline steps:
+    1.  Load HDTB treebank via hutb_loader.load_conllu()
+    2.  Filter sentences to valid SOV/DOSV/IOSV structures
+    3.  Generate permuted variants (max 99 per sentence, random sample)
+    4.  Dependency Length (DL)          → delta_dl
+    5.  Trigram surprisal               → delta_trigram
+    6.  LSTM surprisal                  → delta_lstm
+    7.  Adaptive LSTM surprisal         → delta_adaptive  (slowest step)
+    8.  Information Status / givenness  → delta_is
+    9.  PCFG surprisal (5-fold CV)      → delta_pcfg
+    10. Drop in-memory-only columns (tokens, order, context) and save CSV
+
+Important ordering constraint:
+    Steps 8 (IS) and 9 (PCFG) require item["tokens"], item["order"],
+    and item["context"] which are in-memory only.
+    They MUST be computed before Step 10 drops those columns.
+
+Runtime: ~15-20 minutes total (Step 7 adaptive is the bottleneck).
 """
 
 import os

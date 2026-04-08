@@ -218,3 +218,60 @@ def compute_adaptive_features(dataset, model, vocab, device):
     print(f"    Total pairs scored         : {total_pairs}")
 
     return results
+
+
+# ─────────────────────────────────────────────────────────────
+# __main__ — standalone debug using real pair from features.csv
+#
+# Loads the base LSTM, adapts on the stored context sentence,
+# scores the first DOSV pair, and compares against stored delta.
+#
+# Expected (features.csv, sentence_id=0, DOSV):
+#   reference        : इसे नवाब शाहजेहन ने बनवाया था ।
+#   variant          : नवाब शाहजेहन ने इसे बनवाया था ।
+#   stored delta_adaptive ≈ 3.590
+#
+# Note: adaptive surprisal depends on the context sentence that
+# preceded sentence_id=0 in the document.  If that context is
+# empty (first sentence in document), no adaptation step is run
+# and the result equals plain LSTM surprisal.
+# ─────────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    import sys
+    import pandas as pd
+    sys.path.insert(0, ".")
+
+    from feature_extraction.lstm_features import load_lstm_model, load_vocab
+
+    LSTM_PATH  = "models/lstm/base_model.pt"
+    VOCAB_PATH = "data/processed/vocab.pkl"
+
+    df  = pd.read_csv("data/features/features.csv")
+    row = df[df["construction_type"] == "DOSV"].iloc[0]
+    ref = row["reference"]
+    var = row["variant"]
+
+    print(f"reference        : {ref}")
+    print(f"variant          : {var}")
+    print(f"stored delta_adaptive : {row['delta_adaptive']:.4f}")
+
+    vocab      = load_vocab(VOCAB_PATH)
+    model, device = load_lstm_model(LSTM_PATH, len(vocab["word2idx"]))
+
+    # Reconstruct the minimal dataset item needed by compute_adaptive_features.
+    # Context is empty for sentence_id=0 (first sentence in its document),
+    # so no adaptation step fires — result equals plain LSTM surprisal.
+    dataset = [{
+        "sentence_id": 0,
+        "reference":   ref,
+        "variant":     var,
+        "context":     "",   # no preceding sentence for sentence_id=0
+    }]
+
+    results = compute_adaptive_features(dataset, model, vocab["word2idx"], device)
+    r = results[0]
+
+    print(f"\nadaptive_reference : {r['adaptive_reference']:.4f}")
+    print(f"adaptive_variant   : {r['adaptive_variant']:.4f}")
+    print(f"delta_adaptive     : {r['delta_adaptive']:.4f}  (ref - var)")
+    print(f"matches stored     : {abs(r['delta_adaptive'] - row['delta_adaptive']) < 1e-3}")

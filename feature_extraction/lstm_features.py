@@ -107,3 +107,50 @@ def compute_lstm_features(dataset, model, vocab, device):
         })
 
     return results
+
+
+# ─────────────────────────────────────────────────────────────
+# __main__ — standalone debug using real pair from features.csv
+#
+# Loads the trained LSTM and scores the first DOSV pair from
+# features.csv, then compares against the stored delta.
+#
+# Expected (features.csv, sentence_id=0, DOSV):
+#   reference      : इसे नवाब शाहजेहन ने बनवाया था ।
+#   variant        : नवाब शाहजेहन ने इसे बनवाया था ।
+#   stored delta_lstm ≈ -3.603
+# ─────────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    import sys
+    import pandas as pd
+    sys.path.insert(0, ".")
+
+    LSTM_PATH  = "models/lstm/base_model.pt"
+    VOCAB_PATH = "data/processed/vocab.pkl"
+
+    df  = pd.read_csv("data/features/features.csv")
+    row = df[df["construction_type"] == "DOSV"].iloc[0]
+    ref = row["reference"]
+    var = row["variant"]
+
+    print(f"reference : {ref}")
+    print(f"variant   : {var}")
+    print(f"stored delta_lstm : {row['delta_lstm']:.4f}")
+
+    print(f"\nLoading vocab from {VOCAB_PATH} ...")
+    vocab = load_vocab(VOCAB_PATH)
+    vocab_size = len(vocab["word2idx"])
+    print(f"Vocab size : {vocab_size}")
+
+    print(f"Loading LSTM model from {LSTM_PATH} ...")
+    model, device = load_lstm_model(LSTM_PATH, vocab_size)
+    print(f"Device     : {device}")
+
+    s_ref = sentence_lstm_surprisal(ref, model, vocab["word2idx"], device)
+    s_var = sentence_lstm_surprisal(var, model, vocab["word2idx"], device)
+    delta = s_var - s_ref   # note: lstm uses var-ref convention in compute_lstm_features
+
+    print(f"\nlstm_reference : {s_ref:.4f}")
+    print(f"lstm_variant   : {s_var:.4f}")
+    print(f"delta_lstm     : {delta:.4f}  (var - ref)")
+    print(f"matches stored : {abs(delta - row['delta_lstm']) < 1e-3}")

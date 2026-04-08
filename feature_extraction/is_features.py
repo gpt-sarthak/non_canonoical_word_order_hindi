@@ -206,3 +206,52 @@ def compute_is_features(dataset):
         })
 
     return results
+
+
+# ─────────────────────────────────────────────────────────────
+# __main__ — standalone debug using real pair from features.csv
+#
+# Reloads the first DOSV pair from the treebank (sentence_id=0)
+# and recomputes delta_is, then compares against stored value.
+#
+# Expected (features.csv, sentence_id=0, DOSV):
+#   reference  : इसे नवाब शाहजेहन ने बनवाया था ।
+#   variant    : नवाब शाहजेहन ने इसे बनवाया था ।
+#   stored delta_is : 2
+#
+# IS score of 2 means:
+#   is_reference = +1  (GIVEN before NEW in reference — इसे is a pronoun → GIVEN)
+#   is_variant   = -1  (NEW before GIVEN in variant)
+#   delta = 1 - (-1) = 2
+# ─────────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    import sys
+    import pandas as pd
+    sys.path.insert(0, ".")
+
+    from data.hutb_loader import load_conllu, is_valid_treebank_sentence, build_variant_dataset
+
+    df  = pd.read_csv("data/features/features.csv")
+    row = df[df["construction_type"] == "DOSV"].iloc[0]
+    target_ref = row["reference"]
+    target_var = row["variant"]
+
+    print(f"reference      : {target_ref}")
+    print(f"variant        : {target_var}")
+    print(f"stored delta_is: {row['delta_is']}")
+
+    print("\nReloading from treebank...")
+    sentences, sent_ids, contexts = load_conllu("data/raw/UD_Hindi-HDTB/hi_hdtb-ud-train.conllu")
+    valid = [(s, sid, ctx) for s, sid, ctx in zip(sentences, sent_ids, contexts)
+             if is_valid_treebank_sentence(s)]
+    first_s, first_sid, first_ctx = valid[0]
+    dataset = build_variant_dataset([first_s], [first_sid], [first_ctx])
+
+    match = next((d for d in dataset if d["variant"] == target_var), dataset[0])
+    results = compute_is_features([match])
+    r = results[0]
+
+    print(f"\nis_reference   : {r['is_reference']}  (+1=Given-New, -1=New-Given, 0=same)")
+    print(f"is_variant     : {r['is_variant']}")
+    print(f"delta_is       : {r['delta_is']}  (ref - var)")
+    print(f"matches stored : {r['delta_is'] == row['delta_is']}")
