@@ -1,4 +1,4 @@
-# Non-Canonical Word Order in Hindi — Strict Replication
+# Non-Canonical Word Order in Hindi — Replication
 
 Replication of:
 
