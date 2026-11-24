@@ -126,3 +126,11 @@ Both reference and variant are scored with the **same fold PCFG** (the one train
 that reference sentence). Using different models creates systematic CV bias.
 
 Runtime: ~2-3 minutes for all 92,299 pairs using O(k) fast chunk scoring.
+
+## Data licence: non-commercial use only
+
+This project uses the Universal Dependencies **Hindi-HDTB** treebank
+(<https://universaldependencies.org/treebanks/hi_hdtb/index.html>), which is
+licensed under **CC BY-NC-SA 4.0**. Accordingly, **all the work in this
+repository (code, trained models, scores and results) is for non-commercial
+use only.**
